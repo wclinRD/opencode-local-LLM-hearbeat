@@ -53,26 +53,35 @@ opencode-local-LLM-hearbeat/
 | OpenCode | >= 1.14.0 |
 | Node.js | >= 18 (built-in `node:test` support) |
 
-## 安裝步驟
+## 安裝步驟 (人類版)
+
+> 先 clone 此 repo：`git clone https://github.com/wclinRD/opencode-local-LLM-hearbeat.git /tmp/opencode-hearbeat && cd /tmp/opencode-hearbeat`
+>
+> 以下指令假設你已在 clone 後的 repo 目錄內執行。
+>
+> 目標專案的 `.opencode/` 路徑請自行替換 `<target-project>`。
 
 ### 1. 複製 Plugin 到你的專案
 
 ```bash
-# 在你的 OpenCode 專案根目錄
-cp -r plugin/smart-heartbeat-local /path/to/your/project/.opencode/plugins/
+cp -r plugin/smart-heartbeat-local <target-project>/.opencode/plugins/
 ```
 
 ### 2. 註冊 Plugin
 
-在專案的 `.opencode/opencode.json` 中加入：
+若 `.opencode/opencode.json` 不存在，先建立它。在專案的 `.opencode/opencode.json` 中設定：
 
 ```json
-[".opencode/plugins/smart-heartbeat-local/index.js", {
-  "allowAllAgents": true,
-  "countdownSeconds": 30,
-  "minIntervalMs": 90000,
-  "maxStuckCycles": 8
-}]
+{
+  "plugins": [
+    [".opencode/plugins/smart-heartbeat-local/index.js", {
+      "allowAllAgents": true,
+      "countdownSeconds": 30,
+      "minIntervalMs": 90000,
+      "maxStuckCycles": 8
+    }]
+  ]
+}
 ```
 
 完整選項請參考 `docs/plans/DEPLOY.md`。
@@ -80,11 +89,11 @@ cp -r plugin/smart-heartbeat-local /path/to/your/project/.opencode/plugins/
 ### 3. 執行測試驗證
 
 ```bash
-# 語法驗證
-for f in plugin/smart-heartbeat-local/*.js; do node -c "$f"; done
+# 語法驗證（在目標專案根目錄執行）
+for f in .opencode/plugins/smart-heartbeat-local/*.js; do node -c "$f" 2>/dev/null && echo "OK: $f" || echo "FAIL: $f"; done
 
 # 執行全部 104 個測試
-node --test plugin/smart-heartbeat-local/test/
+node --test .opencode/plugins/smart-heartbeat-local/test/
 ```
 
 ### 4. 在 OpenCode 中使用
@@ -132,22 +141,20 @@ node --test plugin/smart-heartbeat-local/test/
 
 **Step 0: 檢查環境**
 
-```json
-{
-  "check": "Node.js version",
-  "command": "node --version",
-  "expected": "v18.x or higher"
-}
-{
-  "check": "OpenCode version",
-  "command": "opencode --version",
-  "expected": "1.14.0 or higher (check if command exists)"
-}
-{
-  "check": "Target project",
-  "command": "ls .opencode/opencode.json",
-  "expected": "file exists (if not, this may not be an OpenCode project root)"
-}
+<!-- 以下為檢查清單，不是有效 JSON。每個檢查項是獨立記錄，LLM agent 依序執行。 -->
+
+```
+檢查 1: Node.js 版本
+  指令: node --version
+  預期: v18.x 或更高
+
+檢查 2: OpenCode 版本
+  指令: opencode --version
+  預期: 1.14.0 或更高（若指令不存在，跳過此檢查）
+
+檢查 3: 目標專案
+  指令: ls .opencode/opencode.json
+  預期: 檔案存在（若不存在，代表可能不是 OpenCode 專案根目錄）
 ```
 
 **Step 1: Clone 此 repo 到暫存目錄**
@@ -185,7 +192,21 @@ for f in .opencode/plugins/smart-heartbeat-local/*.js; do node -c "$f" 2>/dev/nu
 
 **Step 6: 註冊 Plugin**
 
-在 `.opencode/opencode.json` 的 `plugins` 陣列中加入以下 entry：
+Step 6a: 確認 `.opencode/opencode.json` 存在。若不存在，建立它：
+
+```bash
+# 若 opencode.json 不存在，建立最小設定
+if [ ! -f .opencode/opencode.json ]; then
+  echo '{}' > .opencode/opencode.json
+fi
+```
+
+Step 6b: 在 `.opencode/opencode.json` 中設定 plugin entry。
+
+- 若已有 `"plugins"` 陣列：在陣列中加入以下 entry。
+- 若無 `"plugins"` 欄位：加入 `"plugins": [...]`。
+
+Entry 格式：
 
 ```json
 [".opencode/plugins/smart-heartbeat-local/index.js", {
@@ -199,6 +220,26 @@ for f in .opencode/plugins/smart-heartbeat-local/*.js; do node -c "$f" 2>/dev/nu
   "maxRecoveryAttempts": 3,
   "logLevel": "warn"
 }]
+```
+
+寫入後的完整 opencode.json 範例：
+
+```json
+{
+  "plugins": [
+    [".opencode/plugins/smart-heartbeat-local/index.js", {
+      "allowAllAgents": true,
+      "countdownSeconds": 30,
+      "minIntervalMs": 90000,
+      "maxStuckCycles": 8,
+      "maxToolErrors": 8,
+      "maxRepeatedTool": 10,
+      "maxIdleSeconds": 120,
+      "maxRecoveryAttempts": 3,
+      "logLevel": "warn"
+    }]
+  ]
+}
 ```
 
 ⚠️ **專案路徑規則：永遠使用相對路徑 `.opencode/plugins/smart-heartbeat-local/`。** 不要安裝到 `~/.config/opencode/plugins/`。
@@ -245,13 +286,14 @@ Tool errors: 0 (level 0)
 
 ### 安裝後檢查清單
 
-| 檢查項 | 驗證方式 | 成功條件 |
-|--------|---------|---------|
-| 檔案存在 | `ls .opencode/plugins/smart-heartbeat-local/*.js` | 8 個 .js 檔案 |
-| 語法正確 | `node -c` 每個檔案 | 全部 OK |
-| Plugin 載入 | `node -e "require('.opencode/plugins/smart-heartbeat-local/index.js')"` | 無錯誤 |
-| 測試通過 | `node --test` | 104 pass, 0 fail |
-| OpenCode 回應 | `/heartbeat status` | 顯示完整狀態 |
+| # | 檢查項 | 指令 | 成功條件 |
+|---|--------|------|---------|
+| 1 | Plugin 檔案 | `ls .opencode/plugins/smart-heartbeat-local/*.js` | 8 個 .js 檔案 |
+| 2 | 語法正確 | `for f in .opencode/plugins/smart-heartbeat-local/*.js; do node -c "$f" 2>/dev/null || echo "BROKEN: $f"; done` | 無 `BROKEN:` 輸出 |
+| 3 | Plugin 可載入 | `node -e "require('.opencode/plugins/smart-heartbeat-local/index.js')"` | 無錯誤 (exit 0) |
+| 4 | 註冊設定 | `node -e "const c = require('.opencode/opencode.json'); const p = c.plugins||[]; const m = p.find(e => Array.isArray(e) && e[0].includes('smart-heartbeat-local')); console.log(m ? 'OK' : 'MISSING')"` | 輸出 `OK` |
+| 5 | 測試通過 | `node --test .opencode/plugins/smart-heartbeat-local/test/` | 104 pass, 0 fail |
+| 6 | OpenCode 回應 | 在 OpenCode 中執行 `/heartbeat status` | 顯示完整狀態 |
 
 ### 聯絡設計文件
 
