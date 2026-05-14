@@ -141,6 +141,10 @@ function createOrGetState(sessionID) {
     heartbeatCooldownUntil: 0,
     heartbeatDisabled: false,
     resumePending: false,
+
+    // → Todo cache (from todowrite tool results — see Task 2.4)
+    _cachedTodos: [],             // [{content, status}] from todowrite events, max 1hr TTL
+    _cachedTodosUpdated: 0,       // timestamp of last todowrite cache update
   }
 
   states.set(sessionID, state)
@@ -157,12 +161,17 @@ const debounceTimers = new Map()  // sessionID → setTimeout id
 // 共用資料序列化 (export 供 Phase 4 persistAllStates 複用)
 // 保存完整的 recovery state，確保重啟後可正確重建死亡螺旋防護
 function buildPersistData(sessionID, state) {
+  // → 優先使用 _cachedTodos (from todowrite events)，fallback 到 toolCallHistory
+  //   _cachedTodos 是從 todowrite 工具結果中解出的結構化 todo 列表（含 content + status）
+  //   而 toolCallHistory 只記錄工具呼叫事件，不反映實際 todo 狀態
+  const incompleteTodos = (state._cachedTodos && state._cachedTodos.length > 0)
+    ? state._cachedTodos.filter(t => t.status !== 'completed' && t.status !== 'cancelled')
+    : state.toolCallHistory.filter(t => t.status !== 'completed')
   return {
     sessionID,
     version: 2,                      // v2: 加入完整 recovery 狀態機欄位
     updated: new Date().toISOString(),
-    // → 任務狀態 (供 readTodos fallback 使用)
-    incomplete: state.toolCallHistory.filter(t => t.status !== 'completed'),
+    incomplete: incompleteTodos,      // → 任務狀態 (使用 cached todos，更準確)
     currentTask: state.lastToolName,
     // → 工具統計
     toolErrorCount: state.toolErrorCount,

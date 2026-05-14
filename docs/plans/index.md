@@ -73,7 +73,7 @@ Phase 1 ── Foundation ──→ Phase 2 ── State+Monitor+Detect ──�
 | 1 | `01-foundation.md` | config.js, utils.js, verify-api.js, mock.js | 無 | ~380 impl |
 | 2 | `02-state-monitoring.md` | state.js, monitor.js (含 detectTruncation) | Phase 1 done (Gate #1) | ~280 impl |
 | 3 | `03-recovery-response.md` | recovery.js, injector.js | Gate #2 passed | ~330 impl |
-| 4 | `04-ux-integration.md` | index.js (complete) | Gate #3 passed | ~170 impl |
+| 4 | `04-ux-integration.md` | index.js (complete) + todo caching | Gate #3 passed | ~190 impl |
 | 5 | `05-system-testing.md` | system.test.js (9 scenarios S1-S9) | Gate #4 passed | ~150 test |
 
 **Gate 通過標準：**

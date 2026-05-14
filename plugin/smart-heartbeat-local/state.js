@@ -90,6 +90,10 @@ function createOrGetState(sessionID) {
     heartbeatCooldownUntil: 0,
     heartbeatDisabled: false,
     resumePending: false,
+
+    // Todo cache (from todowrite tool results)
+    _cachedTodos: [],
+    _cachedTodosUpdated: 0,
   }
 
   states.set(sessionID, state)
@@ -113,11 +117,15 @@ function removeState(sessionID) {
 // === Task 2.2: Persistence ===
 
 function buildPersistData(sessionID, state) {
+  // Use cached todos (from todowrite events) if available, fallback to toolCallHistory
+  const incompleteTodos = (state._cachedTodos && state._cachedTodos.length > 0)
+    ? state._cachedTodos.filter(t => t.status !== 'completed' && t.status !== 'cancelled')
+    : state.toolCallHistory.filter(t => t.status !== 'completed')
   return {
     sessionID,
     version: 2,
     updated: new Date().toISOString(),
-    incomplete: state.toolCallHistory.filter(t => t.status !== 'completed'),
+    incomplete: incompleteTodos,
     currentTask: state.lastToolName,
     toolErrorCount: state.toolErrorCount,
     toolCallCount: state.toolCallCount,

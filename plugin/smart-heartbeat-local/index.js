@@ -351,6 +351,23 @@ module.exports = {
     eventHandlers.push(client.on('tool.completed', async event => {
       const sid = getSessionID(event)
       if (!sid) return
+      // Cache todos from todowrite results
+      if (event.properties?.name === 'todowrite') {
+        const output = event.properties?.output || event.properties?.result || event.properties?.arguments
+        if (output) {
+          try {
+            const parsed = typeof output === 'string' ? JSON.parse(output) : output
+            const todos = Array.isArray(parsed) ? parsed : parsed?.todos ? parsed.todos : null
+            if (todos && Array.isArray(todos) && todos.length > 0) {
+              const state = getState(sid)
+              if (state) {
+                state._cachedTodos = todos.map(t => ({ content: t.content || t.name || '', status: t.status || 'pending' }))
+                state._cachedTodosUpdated = Date.now()
+              }
+            }
+          } catch (_) {}
+        }
+      }
       try {
         await checkAndInject(sid)
       } catch (e) {

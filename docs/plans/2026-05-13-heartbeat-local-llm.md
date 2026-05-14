@@ -137,6 +137,10 @@ state = {
   // ===== 對話交換計數 (FIX) =====
   exchangeCount: 0,             // user/assistant 對話回合數，用於 context 估算修正
 
+  // ===== Todo Cache (from todowrite events, NEW) =====
+  _cachedTodos: [],             // [{content, status}] from todowrite tool results, 1hr TTL
+  _cachedTodosUpdated: 0,       // timestamp of last todowrite cache update
+
   // ===== 既有復原欄位 =====
   recoveryCount: 0,             // persistence 中記錄的復原次數
   lastProgressFile: null,       // 進度檔案路徑

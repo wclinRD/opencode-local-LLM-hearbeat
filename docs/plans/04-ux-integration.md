@@ -23,8 +23,9 @@ LLM 實作時依序執行，每完成一項用 `todowrite` 設為 completed：
 | 4.7 | `phase4-intervention.test.js` — 6 cases (reset×1 / cooldown×1 / auto-resume×1 / disable×1 / enable×1 / status×1) | test/ | ~40 | 測試 |
 | 4.8 | `phase4-integration.test.js` — 4 cases (onStart crash handler / onStop cleanup / safeOnStop timeout / handlers wiring) | test/ | ~40 | 測試 |
 | 4.9 | **Gate #4 驗證** — plugin 載入不 crash / onStop 清理 / /heartbeat status / cooldown / auto-resume / crash handler | — | — | 檢查點 |
+| 4.10 | `cacheTodosFromEvent` — todowrite 事件緩存：從 todowrite tool output 解出 todos 存入 state._cachedTodos | index.js | ~20 | 優化 |
 
-**實作順序：** 4.1→4.2→4.3→4.4→4.5→4.6→4.7→4.8→4.9
+**實作順序：** 4.1→4.2→4.3→4.4→4.5→4.6→4.7→4.8→4.9→4.10
 
 ---
 
@@ -117,6 +118,10 @@ module.exports = {
     eventHandlers.push(client.on('tool.completed', async event => {
       const sid = getSessionID(event)
       if (!sid) return
+      // ★ Cache todos from todowrite results (Task 4.7)
+      if (event.properties?.name === 'todowrite') {
+        cacheTodosFromEvent(event, sid)
+      }
       try {
         await checkAndInject(sid)
       } catch (e) {
@@ -481,6 +486,40 @@ const handlers = registerHandlers(mockClient)
 assert(handlers.length >= 4, 'Phase 2 should register tool.started/completed/error + message.completed')
 // verify all handlers have .off()
 handlers.forEach(h => assert.strictEqual(typeof h.off, 'function'))
+```
+
+---
+
+### Task 4.10: CacheTodosFromEvent — Todowrite 事件緩存
+
+**用途：** 從 `tool.completed (name=todowrite)` 的 output 中解出結構化 todo 列表，存入 `state._cachedTodos`，供 `buildPersistData` 優先使用（而非模糊的 `toolCallHistory`）。
+
+**為什麼需要：** `toolCallHistory` 記錄的是工具呼叫事件，不是實際 todo 狀態。當 agent 執行 `todowrite` 更新 todo 列表時，結果中的 `incomplete` / `pending` 狀態才是最準確的任務快照。`_cachedTodos` 解決了「persistence 存了錯誤資料」的根本問題。
+
+```javascript
+function cacheTodosFromEvent(event, sessionID) {
+  const state = getState(sessionID)
+  if (!state) return
+
+  // Output 可能在不同欄位，依 API 版本不同
+  const output = event.properties?.output || event.properties?.result || event.properties?.arguments
+  if (!output) return
+
+  try {
+    const parsed = typeof output === 'string' ? JSON.parse(output) : output
+    // todowrite return: { todos: [...] } or [...]
+    const todos = Array.isArray(parsed) ? parsed : parsed?.todos || null
+    if (!todos || !Array.isArray(todos) || todos.length === 0) return
+
+    state._cachedTodos = todos.map(t => ({
+      content: t.content || t.name || '',
+      status: t.status || 'pending'
+    }))
+    state._cachedTodosUpdated = Date.now()
+  } catch (_) {
+    // parse failure — silently ignore
+  }
+}
 ```
 
 ## Checkpoint Gate #4
