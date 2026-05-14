@@ -194,6 +194,7 @@ async function checkAndInject(sessionID) {
     if (guardAge > Math.max(activeConfig.countdownSeconds * 1000 * 2, 120000)) {
       const logger = getLogger()
       logger.warn(`[GUARD] force-release stale processingGuard after ${guardAge}ms for ${sessionID}`)
+      try { opencodeRef?.showToast?.('Guard force-release: '+sessionID.slice(0,12), 'warn') } catch (_) {}
       state.processingGuard = false
     } else {
       return
@@ -205,6 +206,7 @@ async function checkAndInject(sessionID) {
     if (state.inFlightTool && Date.now() - state.inFlightTool.startTime > state.inFlightTool.timeout) {
       const logger = getLogger()
       logger.warn(`[INJECT] in-flight tool ${state.inFlightTool.name} timed out for ${sessionID}`)
+      try { opencodeRef?.showToast?.('Tool timeout: '+state.inFlightTool.name, 'warn') } catch (_) {}
     } else {
       return
     }
@@ -214,6 +216,7 @@ async function checkAndInject(sessionID) {
   const todos = await readTodos(clientRef, opencodeRef, sessionID, persistDir)
 
   if (todos.length === 0) {
+    try { opencodeRef?.showToast?.('No todos - scan empty for '+sessionID.slice(0,12), 'info') } catch (_) {}
     const currentSnapshot = []
     const prevSnapshot = previousTodosForSession[sessionID] || []
     const truncResult = detectTruncation(state, prevSnapshot, currentSnapshot, activeConfig)
@@ -233,6 +236,7 @@ async function checkAndInject(sessionID) {
   if (truncResult.truncated) {
     const logger = getLogger()
     logger.log(`[TRUNC] detected via ${truncResult.method} (confidence: ${truncResult.confidence}) for ${sessionID}`)
+    try { opencodeRef?.showToast?.('Truncation '+truncResult.method+' conf='+truncResult.confidence, 'warn') } catch (_) {}
     if (shouldAttemptRecovery(state, activeConfig)) {
       executeRecovery(sessionID, state, todos, clientRef, activeConfig)
     }
