@@ -357,22 +357,40 @@ module.exports = async function smartHeartbeat(ctx) {
     handleUserMessage(state, event.text || event.info?.text || event.properties?.text || '', sid)
   }))
 
-  logger.log(`[OK] smart-heartbeat-local v1 started (model: ${detectModelProfile(ctx)})`)
+  // ===== Periodic heartbeat timer (NEW) =====
+  // Scans all sessions periodically when no tool events fire
+  // Prevents heartbeat stall in local LLM mode where events may be unreliable
+  const periodicMs = Math.max((activeConfig?.countdownSeconds || 30) * 1000, 10000)
+  const periodicId = setInterval(() => {
+    for (const [sid] of getStatesMap()) {
+      checkAndInject(sid).catch(e => {
+        try { getLogger()?.err(`[PERIODIC] checkAndInject error for ${sid}: ${e.message}`) } catch (_) {}
+      })
+    }
+  }, periodicMs)
+  // Ensure interval doesn't block process exit
+  if (periodicId && typeof periodicId === 'object' && periodicId.unref) periodicId.unref()
+  activeTimers.add(periodicId)
+
+  logger.log(`[OK] smart-heartbeat-local v1 started (periodic=${periodicMs}ms, model: ${detectModelProfile(ctx)})`)
 
   // Return minimal hooks — event-based shutdown cleanup
   return {
-    event: async ({ event }) => {
-      if (event.type === 'session.shutdown' || event.type === 'app.shutdown') {
-        process.off('uncaughtException', handlePluginCrash)
-        process.off('unhandledRejection', handlePluginCrash)
-        eventHandlers.forEach(h => { try { h.off() } catch (_) {} })
-        eventHandlers = []
-        await safeOnStop([
-          ['clearTimers', () => clearAllTimers(), 500],
-          ['persistAll', () => persistAllStates(), 3000],
-        ])
-        getLogger().log('[OK] shutdown complete')
-      }
-    },
+      event: async ({ event }) => {
+        if (event.type === 'session.shutdown' || event.type === 'app.shutdown') {
+          // Clear periodic interval first
+          clearInterval(periodicId)
+          activeTimers.delete(periodicId)
+          process.off('uncaughtException', handlePluginCrash)
+          process.off('unhandledRejection', handlePluginCrash)
+          eventHandlers.forEach(h => { try { h.off() } catch (_) {} })
+          eventHandlers = []
+          await safeOnStop([
+            ['clearTimers', () => clearAllTimers(), 500],
+            ['persistAll', () => persistAllStates(), 3000],
+          ])
+          getLogger().log('[OK] shutdown complete')
+        }
+      },
   }
 }

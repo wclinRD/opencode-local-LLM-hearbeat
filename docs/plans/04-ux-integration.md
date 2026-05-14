@@ -320,10 +320,12 @@ function buildStatusSummary(state, sessionID) {
 }
 ```
 
-**Task 4.5: Injection loop — 觸發時機 (async)**
+**Task 4.5: Injection loop — 兩種觸發時機**
+
+### 觸發 A: 事件觸發 (tool.completed → checkAndInject)
 
 ```javascript
-// 在 tool.completed 觸發
+// 每次 tool.completed 時觸發一次 checkAndInject(sessionID)
 // 設計參考 §假設 5 — todo 讀取適配層
 //
 // 執行流程:
@@ -415,6 +417,33 @@ async function checkAndInject(sessionID) {
 
 > **Todo 讀取適配層：** `readTodos()` 定義在 `utils.js`（見 Phase 1 Task 1.10b），支援三種後端 — `client.session.getTodos()`、`opencode.session.todos`、persistence fallback。具體可用性由 `verify-api.js` 第 5 項驗證決定。若 persistence fallback 是唯一方案，state persistence 的 debounce 須從 5s 降到 1s（修改 `02-state-monitoring.md` Task 2.2 的 `persistState` debounce 時間）。
 >
+---
+
+### 觸發 B: 定期心跳掃描 (setInterval)
+
+**問題：** 僅依賴 `tool.completed` 事件觸發 `checkAndInject`。若 local LLM 事件系統不可靠或長時間無 tool 呼叫，heartbeat 會停止。
+
+**解法：** 註冊 `setInterval` 定期掃描所有 session，逐一呼叫 `checkAndInject`。
+
+```javascript
+// 在 Event registration 之後註冊：
+const periodicMs = Math.max((activeConfig?.countdownSeconds || 30) * 1000, 10000)
+const periodicId = setInterval(() => {
+  for (const [sid] of getStatesMap()) {
+    checkAndInject(sid)
+  }
+}, periodicMs)
+activeTimers.add(periodicId)
+
+// 注意：onStop 時需 clearInterval(periodicId) 再移除
+```
+
+**特性：**
+- 週期 = `max(countdownSeconds*1000, 10000)` ms (至少 10s)
+- 不阻擋 process exit（`periodicId.unref()`）
+- 與 tool.completed 事件觸發並行 — 事件觸發是立即的，定期掃描是備援
+- 在 shutdown handler 中 `clearInterval` + `activeTimers.delete`
+
 > **Import 注意：** `persistDir` 需從 `state.js` 匯入：`const { persistDir } = require('./state')`。勿直接硬編碼路徑在 `index.js`。
 
 ## Task 4.6: Update opencode.json
