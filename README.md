@@ -115,3 +115,98 @@ node --test plugin/smart-heartbeat-local/test/
 - 完整設計文件: `docs/plans/2026-05-13-heartbeat-local-llm.md`
 - 部署指南: `docs/plans/DEPLOY.md`
 - Code Review: `docs/plans/review-complete.md`
+
+---
+
+## LLM 安裝指引 (給 LLM Agent 閱讀)
+
+以下區塊設計給 codegen agent (Claude Code / Codex CLI / OpenCode / Gemini CLI) 直接讀取並執行。結構化為 json block 方便 parse。
+
+```jsonc
+// LLM_INSTALL_INSTRUCTIONS
+{
+  "plugin": "smart-heartbeat-local",
+  "repo": "https://github.com/wclinRD/opencode-local-LLM-hearbeat",
+  "targetPath": ".opencode/plugins/smart-heartbeat-local/",
+  "files": [
+    "index.js", "config.js", "state.js", "monitor.js",
+    "recovery.js", "injector.js", "utils.js", "verify-api.js"
+  ],
+  "testFiles": [
+    "mock.js", "phase1-config.test.js", "phase1-utils.test.js",
+    "phase2-state.test.js", "phase2-monitor.test.js",
+    "phase3-recovery.test.js", "phase3-injector.test.js",
+    "phase4-intervention.test.js", "phase4-integration.test.js",
+    "system.test.js"
+  ],
+  "installSteps": [
+    {
+      "step": 1,
+      "action": "clone_repo",
+      "command": "git clone https://github.com/wclinRD/opencode-local-LLM-hearbeat.git /tmp/opencode-hearbeat",
+      "description": "Clone repo to temp directory"
+    },
+    {
+      "step": 2,
+      "action": "create_target_dir",
+      "command": "mkdir -p /path/to/target/project/.opencode/plugins/smart-heartbeat-local/test",
+      "description": "Ensure target directories exist"
+    },
+    {
+      "step": 3,
+      "action": "copy_plugin_files",
+      "command": "cp /tmp/opencode-hearbeat/plugin/smart-heartbeat-local/*.js /path/to/target/project/.opencode/plugins/smart-heartbeat-local/",
+      "description": "Copy all plugin .js files to target"
+    },
+    {
+      "step": 4,
+      "action": "copy_test_files",
+      "command": "cp /tmp/opencode-hearbeat/plugin/smart-heartbeat-local/test/*.js /path/to/target/project/.opencode/plugins/smart-heartbeat-local/test/",
+      "description": "Copy all test files to target"
+    },
+    {
+      "step": 5,
+      "action": "verify_syntax",
+      "command": "for f in .opencode/plugins/smart-heartbeat-local/*.js; do node -c \"$f\" 2>/dev/null && echo \"OK: $f\" || echo \"FAIL: $f\"; done",
+      "description": "Verify all plugin files have valid syntax"
+    },
+    {
+      "step": 6,
+      "action": "register_plugin",
+      "description": "Add plugin entry to .opencode/opencode.json or ~/.config/opencode/opencode.json",
+      "configTemplate": {
+        "pluginPath": ".opencode/plugins/smart-heartbeat-local/index.js",
+        "options": {
+          "allowAllAgents": true,
+          "countdownSeconds": 30,
+          "minIntervalMs": 90000,
+          "maxStuckCycles": 8,
+          "maxToolErrors": 8,
+          "maxRepeatedTool": 10,
+          "maxIdleSeconds": 120,
+          "maxRecoveryAttempts": 3,
+          "logLevel": "warn"
+        }
+      }
+    },
+    {
+      "step": 7,
+      "action": "run_tests",
+      "command": "node --test .opencode/plugins/smart-heartbeat-local/test/",
+      "expectedOutput": "104 tests all pass (21+24+40+10+9)"
+    },
+    {
+      "step": 8,
+      "action": "verify_in_opencode",
+      "description": "Launch OpenCode and run /heartbeat status to confirm plugin loaded"
+    }
+  ],
+  "criticalRules": [
+    "DO NOT install to ~/.config/opencode/plugins/ — use project-local path .opencode/plugins/smart-heartbeat-local/",
+    "Run step 5 (syntax verify) BEFORE step 6 (register plugin)",
+    "If tests fail, check step 3-4 file copy before debugging plugin code",
+    "plugin format: module.exports = { onStart, onStop } — NOT export default { id, server }"
+  ],
+  "configReference": "docs/plans/DEPLOY.md has full config options and LLM-parseable install block"
+}
+```
