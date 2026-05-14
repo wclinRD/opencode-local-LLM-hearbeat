@@ -8,7 +8,6 @@
 // === Task 2.4: handleToolStarted ===
 function handleToolStarted(state, event, config) {
   state.lastActivity = Date.now()
-  state.processingGuard = false
 
   const toolName = event.properties?.name || event.properties?.tool || 'unknown'
 

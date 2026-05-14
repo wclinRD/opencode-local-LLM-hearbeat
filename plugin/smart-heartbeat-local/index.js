@@ -199,13 +199,20 @@ async function checkAndInject(sessionID) {
     }
   }
 
-  // In-flight tool check
-  if (state.waitingForTool) {
-    if (state.inFlightTool && Date.now() - state.inFlightTool.startTime > state.inFlightTool.timeout) {
+  // In-flight tool check (any tool type, not just 'task')
+  if (state.inFlightTool) {
+    if (Date.now() - state.inFlightTool.startTime > state.inFlightTool.timeout) {
       try { if (typeof opencodeRef?.showToast === 'function') opencodeRef.showToast(`[TOOL] in-flight ${state.inFlightTool.name} timed out for ${sessionID}`, 'warn') } catch (_) {}
+      state.inFlightTool = null
+      state.waitingForTool = false
     } else {
       return
     }
+  }
+
+  // Busy check: skip if LLM actively processing (recent tool activity)
+  if (state.lastToolTime && Date.now() - state.lastToolTime < 30000) {
+    return
   }
 
   // Read todos via adapter
@@ -341,7 +348,6 @@ module.exports = {
         handleRecoverySuccess(state, event)
         logger.log(`[OK] [${sid}] recovery verified via tool.started`)
       }
-      if (state.processingGuard) state.processingGuard = false
     }))
 
     // Register injection hook (tool.completed → checkAndInject)
