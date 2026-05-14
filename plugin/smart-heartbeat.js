@@ -86,11 +86,11 @@ const plugin = {
       try {
         const resp = await client.session.todo({ path: { id: sessionID } })
         if (resp?.data && Array.isArray(resp.data) && resp.data.length > 0) {
-          try { await client.tui.showToast({ body: { message: `P1获得${resp.data.length}个todos`, variant: 'info' } }) } catch (_) {}
+          try { await client.tui.showToast({ body: { message: `P1獲得${resp.data.length}個todos`, variant: 'info' } }) } catch (_) {}
           return resp.data
         }
       } catch (e) {
-        try { await client.tui.showToast({ body: { message: `P1失败: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
+        try { await client.tui.showToast({ body: { message: `P1失敗: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
       }
 
       // Priority 2: OpenCode V2 API (client.session.getTodos)
@@ -98,12 +98,12 @@ const plugin = {
         if (typeof client?.session?.getTodos === 'function') {
           const todos = await client.session.getTodos()
           if (Array.isArray(todos) && todos.length > 0) {
-            try { await client.tui.showToast({ body: { message: `P2获得${todos.length}个todos`, variant: 'info' } }) } catch (_) {}
+            try { await client.tui.showToast({ body: { message: `P2獲得${todos.length}個todos`, variant: 'info' } }) } catch (_) {}
             return todos
           }
         }
       } catch (e) {
-        try { await client.tui.showToast({ body: { message: `P2失败: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
+        try { await client.tui.showToast({ body: { message: `P2失敗: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
       }
 
       // Priority 3: Session property fallback
@@ -111,12 +111,12 @@ const plugin = {
         if (typeof client?.session?.todos !== 'undefined') {
           const todos = client.session.todos
           if (Array.isArray(todos) && todos.length > 0) {
-            try { await client.tui.showToast({ body: { message: `P3获得${todos.length}个todos`, variant: 'info' } }) } catch (_) {}
+            try { await client.tui.showToast({ body: { message: `P3獲得${todos.length}個todos`, variant: 'info' } }) } catch (_) {}
             return todos
           }
         }
       } catch (e) {
-        try { await client.tui.showToast({ body: { message: `P3失败: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
+        try { await client.tui.showToast({ body: { message: `P3失敗: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
       }
 
       // Priority 4: Cached from todowrite tool results
@@ -129,13 +129,13 @@ const plugin = {
               t => t.status !== 'completed' && t.status !== 'cancelled'
             )
             if (incomplete.length > 0) {
-              try { await client.tui.showToast({ body: { message: `P4缓存${incomplete.length}个未完成todos`, variant: 'info' } }) } catch (_) {}
+              try { await client.tui.showToast({ body: { message: `P4快取${incomplete.length}個未完成todos`, variant: 'info' } }) } catch (_) {}
               return incomplete
             }
           }
         }
       } catch (e) {
-        try { await client.tui.showToast({ body: { message: `P4缓存失败: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
+        try { await client.tui.showToast({ body: { message: `P4快取失敗: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
       }
 
       // Priority 5: Persistence fallback
@@ -147,15 +147,15 @@ const plugin = {
             t => t.status !== 'completed' && t.status !== 'cancelled'
           )
           if (incomplete.length > 0) {
-            try { await client.tui.showToast({ body: { message: `P5磁盘${incomplete.length}个未完成todos`, variant: 'info' } }) } catch (_) {}
+            try { await client.tui.showToast({ body: { message: `P5磁碟${incomplete.length}個未完成todos`, variant: 'info' } }) } catch (_) {}
             return incomplete
           }
         }
       } catch (e) {
-        try { await client.tui.showToast({ body: { message: `P5磁盘失败: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
+        try { await client.tui.showToast({ body: { message: `P5磁碟失敗: ${e.message.slice(0,50)}`, variant: 'warning' } }) } catch (_) {}
       }
 
-      try { await client.tui.showToast({ body: { message: `[TODO] ALL优先级空: ${sessionID.slice(0,12)}...`, variant: 'warning' } }) } catch (_) {}
+      try { await client.tui.showToast({ body: { message: `[TODO] ALL優先級空: ${sessionID.slice(0,12)}...`, variant: 'warning' } }) } catch (_) {}
       return []
     }
 
