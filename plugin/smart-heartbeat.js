@@ -39,7 +39,7 @@ const plugin = {
 
     // Validate merged config — warn but don't block
     const { errors: configErrors } = validateConfig(mergedConfig)
-    for (const e of configErrors) logger.warn(`[CONFIG] ${e}`)
+    if (configErrors.length > 0) try { await client.tui.showToast({ body: { message: `[CONFIG] ${configErrors.join('; ')}`, variant: 'warn' } }) } catch (_) {}
 
     // === Per-session adapter state (NOT in modular state.js) ===
     const pendingInjects = new Map()         // sessionID → setTimeout ID
@@ -60,7 +60,7 @@ const plugin = {
         try {
           await checkAndInject(sessionID)
         } catch (e) {
-          logger.err(`[INJECT] checkAndInject error for ${sessionID}: ${e.message}`)
+          try { await client.tui.showToast({ body: { message: `[INJECT] checkAndInject error: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
         }
       }, delayMs))
     }
@@ -194,7 +194,7 @@ const plugin = {
       // In-flight tool check
       if (state.waitingForTool) {
         if (state.inFlightTool && Date.now() - state.inFlightTool.startTime > state.inFlightTool.timeout) {
-          logger.warn(`[INJECT] in-flight tool ${state.inFlightTool.name} timed out for ${sessionID}`)
+          try { await client.tui.showToast({ body: { message: `[TOOL] in-flight ${state.inFlightTool.name} timed out for ${sessionID}`, variant: 'warn' } }) } catch (_) {}
           state.waitingForTool = false
           state.inFlightTool = null
         } else {
@@ -265,11 +265,11 @@ const plugin = {
       try {
         for (const [sid] of getStatesMap()) {
           await checkAndInject(sid).catch(e => {
-            logger.warn(`[TIMER] checkAndInject error for ${sid}: ${e.message}`)
+            try { client.tui.showToast({ body: { message: `[TIMER] checkAndInject error for ${sid}: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
           })
         }
       } catch (e) {
-        logger.err(`[TIMER] interval error: ${e.message}`)
+        try { client.tui.showToast({ body: { message: `[TIMER] interval error: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
       }
     }, mergedConfig.countdownSeconds * 1000)
 
@@ -336,12 +336,12 @@ const plugin = {
             const fails = (consecutiveFailures.get(sid) || 0) + 1
             consecutiveFailures.set(sid, fails)
 
-            logger.warn(`[TOOL] error #${state.toolErrorCount} for ${sid}: ${event.properties?.error || event.properties?.message || ''}`)
+            try { await client.tui.showToast({ body: { message: `[TOOL] error #${state.toolErrorCount}: ${(event.properties?.error || event.properties?.message || '').slice(0,50)}`, variant: 'warn' } }) } catch (_) {}
 
             if (state.toolErrorCount >= mergedConfig.maxToolErrors) {
               state.heartbeatDisabled = true
               cancelPendingInject(sid)
-              logger.warn(`[TOOL] max errors (${mergedConfig.maxToolErrors}) reached, disabling heartbeat for ${sid}`)
+              try { await client.tui.showToast({ body: { message: `[TOOL] max errors (${mergedConfig.maxToolErrors}) reached, disabling heartbeat`, variant: 'error' } }) } catch (_) {}
             }
             return
           }
@@ -434,7 +434,7 @@ const plugin = {
           }
 
         } catch (e) {
-          logger.err(`[EVENT] handler crash: ${e.message}`)
+          try { await client.tui.showToast({ body: { message: `[EVENT] handler crash: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
         }
       },
 

@@ -114,8 +114,7 @@ function buildInjectPrompt(state, todos, config) {
 async function injectContinuation(sessionID, state, todos, client, config) {
   const { prompt, promptType } = buildInjectPrompt(state, todos, config)
   if (!prompt) {
-    const logger = getLogger()
-    logger.warn(`[INJECT] empty prompt for ${sessionID}, skip`)
+    try { client.tui.showToast({ body: { message: `[INJECT] empty prompt for ${sessionID}, skip`, variant: 'warn' } }) } catch (_) {}
     return
   }
 
@@ -127,11 +126,9 @@ async function injectContinuation(sessionID, state, todos, client, config) {
       path: { id: sessionID },
       body: { parts: [{ type: 'text', text: prompt }] },
     })
-    const logger = getLogger()
-    logger.log(`[OK] [${sessionID}] injected: ${promptType}`)
+    try { client.tui.showToast({ body: { message: `[OK] [${sessionID}] injected: ${promptType}`, variant: 'info' } }) } catch (_) {}
   } catch (e) {
-    const logger = getLogger()
-    logger.err(`[INJECT] prompt failed for ${sessionID}: ${e.message}`)
+    try { client.tui.showToast({ body: { message: `[INJECT] prompt failed for ${sessionID}: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
   }
 }
 

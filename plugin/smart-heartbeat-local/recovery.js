@@ -59,8 +59,7 @@ async function executeRecovery(sessionID, state, todos, client, config) {
       body: { parts: [{ type: 'text', text: prompt }] },
     })
   } catch (e) {
-    const logger = getLogger()
-    logger.warn(`[RECOV] inject failed for ${sessionID}: ${e.message}`)
+    try { client.tui.showToast({ body: { message: `[RECOV] inject failed for ${sessionID}: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
     handleRecoveryFailure(sessionID, state, config, todos, client)
     return
   }
@@ -77,8 +76,7 @@ function startRecoveryVerification(sessionID, state, config, todos, client) {
   clearRecoveryVerification(state)
 
   state.recoveryVerificationStage1 = setSafeTimeout(() => {
-    const logger = getLogger()
-    logger.warn(`[RECOV] processing slow (>${stage1Delay}ms) for ${sessionID}`)
+    try { client.tui.showToast({ body: { message: `[RECOV] processing slow (>${Math.round(stage1Delay/1000)}s) for ${sessionID}`, variant: 'warn' } }) } catch (_) {}
 
     state.recoveryVerificationStage2 = setSafeTimeout(() => {
       handleRecoveryFailure(sessionID, state, config, todos, client)
@@ -121,8 +119,7 @@ function handleRecoveryFailure(sessionID, state, config, todos, client) {
   if (detectDeathSpiral(state, config)) {
     state.deathSpiral = true
     state.recoveryState = 'stopped'
-    const logger = getLogger()
-    logger.warn(`[RECOV] death spiral detected for ${sessionID}, recovery stopped`)
+    try { client.tui.showToast({ body: { message: `[RECOV] death spiral detected for ${sessionID}, recovery stopped`, variant: 'error' } }) } catch (_) {}
     autoNotifyCore(state, sessionID)
     return
   }
@@ -133,8 +130,7 @@ function handleRecoveryFailure(sessionID, state, config, todos, client) {
     executeRecovery(sessionID, state, todos, client, config)
   } else {
     state.recoveryState = 'stopped'
-    const logger = getLogger()
-    logger.warn(`[RECOV] max attempts (${config.maxRecoveryAttempts}) reached for ${sessionID}`)
+    try { client.tui.showToast({ body: { message: `[RECOV] max attempts (${config.maxRecoveryAttempts}) reached for ${sessionID}`, variant: 'error' } }) } catch (_) {}
     autoNotifyCore(state, sessionID)
   }
 }

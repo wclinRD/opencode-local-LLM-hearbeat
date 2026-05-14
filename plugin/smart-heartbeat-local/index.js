@@ -307,12 +307,12 @@ module.exports = {
     const logger = getLogger()
 
     if (errors.length > 0) {
-      for (const e of errors) logger.warn(`[CONFIG] ${e}`)
+      for (const e of errors) { try { client.tui.showToast({ body: { message: `[CONFIG] ${e}`, variant: 'warn' } }) } catch (_) {} }
     }
 
     // Safety: clean orphaned timers
     if (activeTimers.size > 0) {
-      logger.warn(`[STARTUP] ${activeTimers.size} orphaned timers, cleaning up`)
+      try { client.tui.showToast({ body: { message: `[STARTUP] ${activeTimers.size} orphaned timers, cleaning up`, variant: 'warn' } }) } catch (_) {}
       clearAllTimers()
     }
 
@@ -326,7 +326,7 @@ module.exports = {
       await fs.promises.mkdir(path.resolve(process.cwd(), pd), { recursive: true })
       cleanStaleFiles()
     } catch (e) {
-      logger.warn(`persistence disabled: ${e.message}`)
+      try { client.tui.showToast({ body: { message: `persistence disabled: ${e.message.slice(0,60)}`, variant: 'warn' } }) } catch (_) {}
     }
 
     // Restore states from disk
@@ -346,7 +346,7 @@ module.exports = {
       if (state.recoveryState === 'injected') {
         clearRecoveryVerification(state)
         handleRecoverySuccess(state, event)
-        logger.log(`[OK] [${sid}] recovery verified via tool.started`)
+        try { client.tui.showToast({ body: { message: `[OK] [${sid}] recovery verified`, variant: 'info' } }) } catch (_) {}
       }
     }))
 
@@ -357,7 +357,7 @@ module.exports = {
       try {
         await checkAndInject(sid)
       } catch (e) {
-        logger.err(`[INJECT] checkAndInject error for ${sid}: ${e.message}`)
+        try { client.tui.showToast({ body: { message: `[INJECT] checkAndInject error: ${e.message.slice(0,50)}`, variant: 'error' } }) } catch (_) {}
       }
     }))
 
