@@ -16,6 +16,7 @@ const INJECTOR_ROUTES = {
   tool_error_escalated: { needsLevel: true,  styleAware: true,  group: 'toolError' },
   tool_error_search:  { needsLevel: false, styleAware: true,  group: 'toolError' },
   context_pressure:   { needsLevel: false, styleAware: true,  group: 'context' },
+  forgotten:          { needsLevel: false, styleAware: true,  group: 'forgotten' },
   stuck:              { needsLevel: false, styleAware: true,  group: 'stuck' },
   normal:             { needsLevel: false, styleAware: true,  group: 'continuation' },
 }
@@ -37,11 +38,16 @@ function determinePromptType(state, todos, config) {
   // Priority 3: Context pressure
   if (state.contextWarnings >= 3) return 'context_pressure'
 
-  // Priority 4: Stuck
+  // Priority 4: Forgotten task (same task injected ≥3x, tool activity seen, status unchanged)
+  if (state.sameTaskInjectionCount >= 3 && state.taskToolActivityAfterInject) {
+    return 'forgotten'
+  }
+
+  // Priority 5: Stuck
   const stuck = checkStuckState(state, todos, config)
   if (stuck.stuck) return 'stuck'
 
-  // Priority 5: Normal continuation
+  // Priority 6: Normal continuation
   return 'normal'
 }
 
@@ -66,6 +72,7 @@ function selectPromptTemplate(promptType, promptStyle, level, state, todos) {
 
   if (route.group === 'context') return promptStyle.contextPressure
   if (route.group === 'stuck') return promptStyle.stuck
+  if (route.group === 'forgotten') return promptStyle.forgotten
   return promptStyle.continuation
 }
 
@@ -117,6 +124,15 @@ async function injectContinuation(sessionID, state, todos, client, config) {
     try { client.tui.showToast({ body: { message: `[INJECT] empty prompt for ${sessionID}, skip`, variant: 'warn' } }) } catch (_) {}
     return
   }
+
+  // Track forgotten task: same task injected multiple times
+  const currentTask = todos.find(t => t.status === 'in_progress')?.content || (todos[0]?.content || '')
+  if (state.lastInjectedTask !== currentTask) {
+    state.sameTaskInjectionCount = 0
+    state.lastInjectedTask = currentTask
+  }
+  state.sameTaskInjectionCount++
+  state.taskToolActivityAfterInject = false
 
   state.lastInjectionTime = Date.now()
   state.processingGuard = true

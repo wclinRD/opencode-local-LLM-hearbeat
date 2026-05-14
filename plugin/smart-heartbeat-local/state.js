@@ -94,6 +94,11 @@ function createOrGetState(sessionID) {
     // Todo cache (from todowrite tool results)
     _cachedTodos: [],
     _cachedTodosUpdated: 0,
+
+    // Forgotten task detection
+    lastInjectedTask: null,
+    sameTaskInjectionCount: 0,
+    taskToolActivityAfterInject: false,
   }
 
   states.set(sessionID, state)

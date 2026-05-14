@@ -29,6 +29,11 @@ function handleToolStarted(state, event, config) {
   state.lastToolName = toolName
   state.lastToolTime = Date.now()
   state.toolCallCount++
+
+  // Track tool activity after injection (for forgotten task detection)
+  if (state.lastInjectionTime > 0 && Date.now() - state.lastInjectionTime < 120000) {
+    state.taskToolActivityAfterInject = true
+  }
 }
 
 // === Task 2.5: handleToolCompleted ===
