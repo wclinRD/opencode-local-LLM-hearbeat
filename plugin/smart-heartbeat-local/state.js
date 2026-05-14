@@ -210,25 +210,30 @@ function clearPersistenceDebounce(sessionID) {
 
 async function cleanStaleFiles() {
   const pd = _getPersistDir()
+  let files
   try {
-    const files = await fs.promises.readdir(pd)
-    const now = Date.now()
-    const maxAge = 24 * 60 * 60 * 1000
-    let cleaned = 0
-    for (const file of files) {
-      if (!file.endsWith('.json')) continue
+    files = await fs.promises.readdir(pd)
+  } catch (e) {
+    if (e.code === 'ENOENT') return  // dir not yet created, nothing to clean
+    const logger = getLogger()
+    logger.warn(`[PERSIST] cleanup failed: ${e.message}`)
+    return
+  }
+  const now = Date.now()
+  const maxAge = 24 * 60 * 60 * 1000
+  let cleaned = 0
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue
+    try {
       const stat = await fs.promises.stat(path.join(pd, file))
       if (now - stat.mtimeMs > maxAge) {
         await fs.promises.unlink(path.join(pd, file))
         cleaned++
       }
-    }
-    const logger = getLogger()
-    if (cleaned > 0) logger.log(`[PERSIST] cleaned ${cleaned} stale files`)
-  } catch (e) {
-    const logger = getLogger()
-    logger.warn(`[PERSIST] cleanup failed: ${e.message}`)
+    } catch (_) { /* race: file deleted between readdir and stat */ }
   }
+  const logger = getLogger()
+  if (cleaned > 0) logger.log(`[PERSIST] cleaned ${cleaned} stale files`)
 }
 
 async function loadFromPersistence(sessionID) {

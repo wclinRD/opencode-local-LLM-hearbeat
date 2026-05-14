@@ -252,8 +252,11 @@ const plugin = {
       ].join('\n')
     }
 
-    // === Startup: restore states from persistence ===
+    // === Startup: ensure persistence dir, restore states ===
     try {
+      const pd = typeof persistDir === 'string' ? persistDir : '.opencode/heartbeat-state/'
+      const { mkdir } = require('fs/promises')
+      await mkdir(pd, { recursive: true })
       await loadAllFromPersistence()
       cleanStaleFiles()
     } catch (_) {}
