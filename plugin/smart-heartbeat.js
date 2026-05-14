@@ -184,7 +184,7 @@ const plugin = {
         const guardAge = Date.now() - (state.lastInjectionTime || 0)
         const guardTimeout = Math.max(mergedConfig.countdownSeconds * 1000, 30000)
         if (guardAge > guardTimeout) {
-          logger.warn(`[GUARD] force-release stale guard after ${guardAge}ms for ${sessionID}`)
+          try { await client.tui.showToast({ body: { message: `[GUARD] force-release stale guard after ${Math.round(guardAge/1000)}s`, variant: 'warn' } }) } catch (_) {}
           state.processingGuard = false
         } else {
           return
