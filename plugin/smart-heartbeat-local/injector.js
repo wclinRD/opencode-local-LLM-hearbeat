@@ -107,7 +107,7 @@ function buildInjectPrompt(state, todos, config) {
     lastTool: state.toolErrorAnalysis?.lastErrorTool || '',
     suggestion: '',
   })
-  return { prompt, promptType }
+  return { prompt: `${prompt}\n\n請使用台灣繁體中文回答。`, promptType }
 }
 
 // === Task 3.12: injectContinuation ===
