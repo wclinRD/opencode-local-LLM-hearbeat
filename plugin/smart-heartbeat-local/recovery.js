@@ -54,7 +54,10 @@ async function executeRecovery(sessionID, state, todos, client, config) {
 
   // Inject recovery prompt
   try {
-    await client.session.prompt({ message: prompt, sessionID })
+    await client.session.prompt({
+      path: { id: sessionID },
+      body: { parts: [{ type: 'text', text: prompt }] },
+    })
   } catch (e) {
     const logger = getLogger()
     logger.warn(`[RECOV] inject failed for ${sessionID}: ${e.message}`)

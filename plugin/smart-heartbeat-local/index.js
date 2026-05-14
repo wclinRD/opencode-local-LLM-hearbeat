@@ -192,7 +192,7 @@ async function checkAndInject(sessionID) {
   if (state.processingGuard) {
     const guardAge = Date.now() - (state.lastInjectionTime || 0)
     if (guardAge > Math.max(activeConfig.countdownSeconds * 1000 * 2, 120000)) {
-      try { opencodeRef?.showToast?.('Guard force-release: '+sessionID.slice(0,12), 'warn') } catch (_) {}
+      try { if (typeof opencodeRef?.showToast === 'function') opencodeRef.showToast(`[GUARD] force-release stale guard after ${Math.round(guardAge/1000)}s`, 'warn') } catch (_) {}
       state.processingGuard = false
     } else {
       return
@@ -202,7 +202,7 @@ async function checkAndInject(sessionID) {
   // In-flight tool check
   if (state.waitingForTool) {
     if (state.inFlightTool && Date.now() - state.inFlightTool.startTime > state.inFlightTool.timeout) {
-      try { opencodeRef?.showToast?.('Tool timeout: '+state.inFlightTool.name, 'warn') } catch (_) {}
+      try { if (typeof opencodeRef?.showToast === 'function') opencodeRef.showToast(`[TOOL] in-flight ${state.inFlightTool.name} timed out for ${sessionID}`, 'warn') } catch (_) {}
     } else {
       return
     }
@@ -212,7 +212,6 @@ async function checkAndInject(sessionID) {
   const todos = await readTodos(clientRef, opencodeRef, sessionID, persistDir)
 
   if (todos.length === 0) {
-    try { opencodeRef?.showToast?.('No todos - scan empty for '+sessionID.slice(0,12), 'info') } catch (_) {}
     const currentSnapshot = []
     const prevSnapshot = previousTodosForSession[sessionID] || []
     const truncResult = detectTruncation(state, prevSnapshot, currentSnapshot, activeConfig)
@@ -230,7 +229,7 @@ async function checkAndInject(sessionID) {
   previousTodosForSession[sessionID] = currentSnapshot
 
   if (truncResult.truncated) {
-    try { opencodeRef?.showToast?.('Truncation '+truncResult.method+' conf='+truncResult.confidence, 'warn') } catch (_) {}
+    try { if (typeof opencodeRef?.showToast === 'function') opencodeRef.showToast(`[TRUNC] 偵測到截斷 (${truncResult.method}, 信心: ${Math.round(truncResult.confidence * 100)}%)`, 'warn') } catch (_) {}
     if (shouldAttemptRecovery(state, activeConfig)) {
       executeRecovery(sessionID, state, todos, clientRef, activeConfig)
     }
@@ -349,23 +348,6 @@ module.exports = {
     eventHandlers.push(client.on('tool.completed', async event => {
       const sid = getSessionID(event)
       if (!sid) return
-      // Cache todos from todowrite results
-      if (event.properties?.name === 'todowrite') {
-        const output = event.properties?.output || event.properties?.result || event.properties?.arguments
-        if (output) {
-          try {
-            const parsed = typeof output === 'string' ? JSON.parse(output) : output
-            const todos = Array.isArray(parsed) ? parsed : parsed?.todos ? parsed.todos : null
-            if (todos && Array.isArray(todos) && todos.length > 0) {
-              const state = getState(sid)
-              if (state) {
-                state._cachedTodos = todos.map(t => ({ content: t.content || t.name || '', status: t.status || 'pending' }))
-                state._cachedTodosUpdated = Date.now()
-              }
-            }
-          } catch (_) {}
-        }
-      }
       try {
         await checkAndInject(sid)
       } catch (e) {

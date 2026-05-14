@@ -123,7 +123,10 @@ async function injectContinuation(sessionID, state, todos, client, config) {
   state.processingGuard = true
 
   try {
-    await client.session.prompt({ message: prompt, sessionID })
+    await client.session.prompt({
+      path: { id: sessionID },
+      body: { parts: [{ type: 'text', text: prompt }] },
+    })
     const logger = getLogger()
     logger.log(`[OK] [${sessionID}] injected: ${promptType}`)
   } catch (e) {
