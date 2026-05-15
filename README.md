@@ -123,11 +123,69 @@ node --test .opencode/plugins/smart-heartbeat-local/test/
 | macOS 睡眠保護 | 喚醒後跳過過期 timer，避免大量注入 |
 | 使用者緊急介入 | `/heartbeat` 命令控制 + 60s cooldown |
 
+## 推薦搭配：Self-Reflection 自動反省 Skill
+
+> 🔗 [opencode-auto-reflection](https://github.com/wclinRD/opencode-auto-reflection) — 讓 OpenCode agent 擁有自動學習反思能力
+
+Heartbeat 負責「續行未完成的任務」，self-reflection 負責「從錯誤和成功中學習」。
+兩者搭配使用可形成完整的**任務續行 + 自動反省迴圈**：
+
+### 整合效果
+
+```
+Heartbeat 續行觸發
+  → 檢查 self-reflection 是否正在反省中（reflecting flag）
+    → 是：等待反省完成，不中斷反省流程
+    → 否：正常執行續行任務
+  → 反省完成後才繼續執行任務（順序保證）
+  → 續行後不重置反省深度計數器（防止無限遞迴）
+```
+
+### 對比：只有 Heartbeat vs Heartbeat + Self-Reflection
+
+| 情境 | 只有 Heartbeat | 加上 Self-Reflection |
+|------|---------------|-------------------|
+| Session 逾時續行 | ✅ 自動續行 | ✅ 自動續行 |
+| 續行時正在反省 | ❌ 反省被打斷 | ✅ 反省狀態保留 |
+| 工具報錯後反省 | ❌ 無反省能力 | ✅ L1 即時分析錯誤原因 |
+| 跨 session 學習 | ❌ 無學習能力 | ✅ L2 模式提取跨 session 比對 |
+| 技能自動演化 | ❌ 靜態 skill | ✅ 自動產生新 skill 改善未來 |
+| 死亡螺旋迴圈 | ✅ 5 種偵測方法 | ✅ 學習螺旋模式後自動預防 |
+
+### 安裝 Self-Reflection Skill
+
+```bash
+# 從 auto-reflection 倉庫複製 skill
+git clone https://github.com/wclinRD/opencode-auto-reflection.git /tmp/opencode-reflection
+cp -r /tmp/opencode-reflection/skills/self-reflection ~/.agents/skills/
+cp /tmp/opencode-reflection/reflection-log.jsonl ~/.opencode/
+
+# 驗證
+ls ~/.agents/skills/self-reflection/SKILL.md     # 應存在
+ls ~/.opencode/reflection-log.jsonl               # 應存在
+```
+
+安裝後在 OpenCode TUI 中載入：
+
+```
+/self-reflection
+```
+
+或加入 CLAUDE.md 自動載入：
+
+```yaml
+on_start:
+  - skill(name: "self-reflection")
+```
+
+---
+
 ## 更多文件
 
 - 完整設計文件: `docs/plans/2026-05-13-heartbeat-local-llm.md`
 - 部署指南: `docs/plans/DEPLOY.md`
 - Code Review: `docs/plans/review-complete.md`
+- Self-Reflection 整合: [opencode-auto-reflection](https://github.com/wclinRD/opencode-auto-reflection)
 
 ---
 
@@ -251,6 +309,23 @@ Tool errors: 0 (level 0)
 1. `.opencode/plugins/smart-heartbeat.js` 是否存在
 2. OpenCode 是否自動掃描 `.opencode/plugins/`（部分環境需要 `file://` 絕對路徑註冊）
 
+### 選擇性安裝：Self-Reflection Skill（推薦搭配）
+
+如果你也希望 agent 能從錯誤中學習、自動產生技能改善未來行為，建議同時安裝 [opencode-auto-reflection](https://github.com/wclinRD/opencode-auto-reflection)：
+
+```bash
+# 在目標專案根目錄執行
+git clone https://github.com/wclinRD/opencode-auto-reflection.git /tmp/opencode-reflection
+mkdir -p ~/.agents/skills/self-reflection/
+cp /tmp/opencode-reflection/skills/self-reflection/SKILL.md ~/.agents/skills/self-reflection/
+cp /tmp/opencode-reflection/reflection-log.jsonl ~/.opencode/
+```
+
+安裝後，Heartbeat 會自動與 self-reflection 協作：
+- 續行時檢查 `reflecting` flag，不中斷反省流程
+- 反省完成後才繼續執行續行任務
+- 續行後不重置反省深度計數器
+
 ### 關鍵規則
 
 ```
@@ -261,6 +336,7 @@ Tool errors: 0 (level 0)
 5. OpenCode plugin API: module.exports = async (ctx) => { ... } — 單一 factory function
 6. 不要使用 "plugins" (複數) key in opencode.json — 不支援，會 ConfigInvalidError
 7. wrapper 內建防重複初始化 guard，auto-discovery 與 file:// 並存沒問題
+8. 如安裝 self-reflection，Heartbeat 會自動尊重 reflecting flag，不需額外設定
 ```
 
 ### 安裝後檢查清單
